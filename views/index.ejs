@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<title>imageTextApp</title>
+    <style>
+        ::selection {
+        	background:#0dc5c1;
+            color: #fff;
+        }
+
+        ::-moz-selection {
+        	background:#0dc5c1;
+            color: #fff;
+        }
+        html {
+            background: #fafafa;
+            padding: 20px 0;
+            width: 1080px;
+            margin: auto;
+        }
+        body {
+            width: 1000px;
+            margin: auto;
+        }
+        h1 {
+            font-size: 32px;
+            margin: 32px 0;
+            color: #666;
+        }
+        table {
+            width: 100%;
+            margin:0 auto 24px;
+            border-radius: 6px;
+            overflow: hidden;
+            border-collapse: separate;
+            border-spacing: 0;
+            border: solid 1px #efefef;
+            outline: 0;
+            padding: 0;
+            font-size: 15px;
+        }
+        table th {
+            background: #efefef;
+            color: #666;
+            padding: 12px 12px;
+        }
+        table td {
+            background: #fff;
+            border-top: solid 1px #efefef;
+            color: #666;
+            padding: 12px 12px;
+            word-wrap: break-word;
+            word-break: break-all;
+        }
+        .loading {
+            width: 100%;
+            height: 8px;
+            background: #fafafa;
+            position: relative;
+            margin: 4px 0;
+        }
+        .loadingGaugeApi,
+        .loadingGaugeText {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            background: #0dc5c1;
+            transition: all .05s ease-in-out;
+        }
+        .keyword {
+            height: 50px;
+            width: 400px;
+            border-radius: 6px;
+            border: solid 1px #efefef;
+            font-size: 18px;
+            padding: 4px 12px;
+            color: #666;
+            outline: none;
+        }
+        .keyword:focus {
+            border: solid 1px #0dc5c1;
+        }
+        .btn {
+            font-size: 16px;
+            padding: 4px 16px;
+            height: 48px;
+            color: #fff;
+            border-radius: 6px;
+            border: none;
+            background: #0dc5c1;
+            outline: none;
+            cursor: pointer;
+        }
+        .btn:disabled {
+            background: #efefef;
+            color: #ddd;
+        }
+        .csv {
+            font-size: 16px;
+            padding: 0px 16px;
+            width: 400px;
+            cursor: pointer;
+            height: 48px;
+            line-height: 48px;
+            text-align: center;
+            color: #fff;
+            border-radius: 6px;
+            border: none;
+            background: #0dc5c1;
+            outline: none;
+            display: block;
+            margin: 0 auto 32px;
+            text-decoration: none;
+        }
+        .wrap {
+            text-align: center;
+            padding-bottom: 40px;
+        }
+        .count {
+            white-space: nowrap;
+            display: block;;
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <h1>Check Image Text App</h1>
+        <input type="search" placeholder="キーワードを入力" class="keyword">
+        <input type="button" value="Check Text" class="btn" disabled="disabled">
+    </div>
+    <div class="res"></div>
+    <script src='/static/lib/js/tesseract.js'></script>
+	<script src='/static/lib/js/encoding.js'></script>
+	<script>
+
+        var images = '<%- img %>'.split(',');
+        var btn = document.querySelector('.btn');
+        var res = document.querySelector('.res');
+        var keyword = document.querySelector('.keyword');
+        var tableCount = 0;
+        keyword.addEventListener('change',checkText,false);
+        keyword.addEventListener('keyup',checkText,false);
+        function checkText () {
+            if(this.value === '') {
+                btn.disabled = true;
+            }else {
+                btn.disabled = false;
+            }
+        }
+        function str_to_unicode_array( str ){
+        	var arr = [];
+        	for( var i = 0; i < str.length; i ++ ){
+        		arr.push( str.charCodeAt( i ) );
+        	}
+        	return arr;
+        };
+        btn.addEventListener('click',function () {
+            if(btn.disabled) return;
+            var count = 0;
+            var csv_line = 'ID,パス,文字(英語),文字(日本語),結果';
+            tableCount++;
+            btn.disabled = true;
+            var table = document.createElement('table');
+            table.id = 'table' + tableCount;
+            var keywords = keyword.value.split(',');
+            table.innerHTML = '<tr><th style="width:3%;">ID</th><th style="width:12%;">画像</th><th style="width:25%;">パス</th><th style="width:25%;">文字(英語)</th><th style="width:25%;">文字(日本語)</th><th style="width:10%;">結果</th></tr>';
+            res.appendChild(table)
+            function checkImage () {
+                if (count >= images.length) {
+
+
+                    var dlLink = document.createElement('a');
+                    dlLink.innerHTML = 'Download CSV';
+                    dlLink.className = 'csv';
+                    dlLink.setAttribute('data-name','table' + tableCount);
+                    res.appendChild(dlLink);
+                	// Unicodeコードポイントの配列に変換する
+                	var unicode_array = str_to_unicode_array( csv_line );
+
+                	// SJISコードポイントの配列に変換
+                	var sjis_code_array = Encoding.convert(
+                		unicode_array, // ※文字列を直接渡すのではない点に注意
+                		'SJIS',  // to
+                		'UNICODE' // from
+                	);
+
+                	// 文字コード配列をTypedArrayに変換する
+                	var uint8_array = new Uint8Array( sjis_code_array );
+
+                	// 指定されたデータを保持するBlobを作成する
+                	var blob = new Blob([ uint8_array ], { type: 'text/csv' });
+
+                	// Aタグのhref属性にBlobオブジェクトを設定し、リンクを生成
+                	window.URL = window.URL || window.webkitURL;
+                	dlLink.href = window.URL.createObjectURL(blob);
+                	dlLink.download = "checkText.csv";
+
+
+                    // dlLink.addEventListener('click',function(){
+                    //     console.log(this.getAttribute('data-name'))
+                    // },false);
+                    btn.disabled = false;
+                    return;
+                }
+                var path = images[count].replace('public','static');
+                var txt = document.createElement('tr');
+                txt.innerHTML = '<td><span class="count">'+(count+1)+'</span></td><td><img src="'+path+'" width="80"></td><td>'+path+'</td><td><div class="loading"><div class="loadingGaugeApi"></div></div><div class="loading"><div class="loadingGaugeText"></div></div></td><td></td><td></td>';
+                table.appendChild(txt)
+                var loadingGaugeApi = document.querySelector('.loadingGaugeApi');
+                var loadingGaugeText = document.querySelector('.loadingGaugeText');
+                // Tesseractjs
+                Tesseract
+        		.recognize(path, {lang: 'eng'})
+                .progress(function  (p) {
+                    if(p.status.match('api')) {
+                        loadingGaugeApi.style.width = Math.floor(p.progress * 100) + '%';
+                    }else if(p.status.match('text')){
+                        loadingGaugeText.style.width = Math.floor(p.progress * 100) + '%';
+                    }
+                    console.log(p)
+                })
+        		.then(function(resultEng) {
+                    txt.innerHTML = '<td><span class="count">'+(count+1)+'</span></td><td><img src="'+path+'" width="80"></td><td>'+path+'</td><td>'+resultEng.text+'</td><td><div class="loading"><div class="loadingGaugeApi"></div></div><div class="loading"><div class="loadingGaugeText"></div></div></td><td></td>';
+                    var loadingGaugeApi = document.querySelector('.loadingGaugeApi');
+                    var loadingGaugeText = document.querySelector('.loadingGaugeText');
+
+                    Tesseract
+            		.recognize(path, {lang: 'jpn'})
+                    .progress(function  (p) {
+                        if(p.status.match('api')) {
+                            loadingGaugeApi.style.width = Math.floor(p.progress * 100) + '%';
+                        }else if(p.status.match('text')){
+                            loadingGaugeText.style.width = Math.floor(p.progress * 100) + '%';
+                        }
+                    })
+            		// 結果のコールバック
+            		.then(function(resultJpn) {
+                        var matchKeyword = '',
+                            matchKeyword2 = '';
+                        for(var i = 0,l = keywords.length;i < l;i++) {
+                            var reg = new RegExp(keywords[i], 'i');
+                            if(resultEng.text.match(reg)|| resultJpn.text.match(reg)) {
+                                matchKeyword += '<div>'+keywords[i]+'</div>';
+                                matchKeyword2 += keywords[i] + ' ';
+                            }
+                        }
+                        setTimeout(function (){
+                            txt.innerHTML = '<td><span class="count">'+(count+1)+'</span></td><td><img src="'+path+'" width="80"></td><td>'+path+'</td><td>'+resultEng.text+'</td><td>'+resultJpn.text+'</td><td>'+matchKeyword+'</td>';
+                            csv_line += "\r\n" + (count+1)+','+path+','+resultEng.text.replace(/\r?\n/g,'').replace(/^=/,'')+','+resultJpn.text.replace(/\r?\n/g,'').replace(/^=/,'')+','+matchKeyword2;
+                            count++;
+                            checkImage ();
+                        },100);
+
+            		});
+
+        		});
+            }
+            checkImage ();
+        },false);
+
+
+	</script>
+</body>
+</html>
+
+<!-- <form action="/search">
+
+</form> -->
