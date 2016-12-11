@@ -1,7 +1,7 @@
 var express = require('express'),
     app = express();
 
-var server = app.listen(3000, function(){
+var server = app.listen(process.env.PORT || 8000, function(){
     console.log("Node.js is listening to PORT:" + server.address().port);
 });
 
